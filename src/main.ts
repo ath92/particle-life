@@ -21,8 +21,8 @@ const regl = Regl({
 })
 
 const N = 200 // N particles on the width, N particles on the height.
-const size = 5
-const spread = 9
+const size = 1
+const spread = 25
 
 const resolution = [
   window.innerWidth,
@@ -96,11 +96,15 @@ const randomInit = regl({
     }
 
     void main () {
-      gl_FragColor = vec4(
+      vec3 c = vec3(
         rand(pos + seed),
         rand(pos * 2. + seed),
-        rand(pos * 3. + seed),
-        rand(pos * 4. + seed)
+        rand(pos * 3. + seed)
+      );
+      c = c / length(c);
+      gl_FragColor = vec4(
+        c,
+        1.
       );
     }
   `,
@@ -126,54 +130,23 @@ const randomInit = regl({
   framebuffer: regl.prop('fbo'),
 })
 
-
-// draws some random colors
-const randomColors = regl({
-  frag: `
-    precision highp float;
-    varying vec2 pos;
-    uniform vec2 seed;
-    float rand(vec2 co){
-      return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
-    }
-
-    void main () {
-      float random = rand(gl_FragCoord.xy);
-      if (random < 1. / 3.) {
-        gl_FragColor = vec4(1, 0, 0, 1);
-      } else if  (random >= 1./3. && random < 2./3.) {
-        gl_FragColor = vec4(0, 1, 0, 1);
-      } else {
-        gl_FragColor = vec4(0, 0, 1, 1);
-      }
-    }
-  `,
-  vert: `
-    precision highp float;
-    attribute vec2 position;
-    varying vec2 pos;
-
-    void main () {
-      pos = position;
-      gl_Position = vec4(position, 0, 1);
-    }
-  `,
-  attributes: {
-    position: [[-1, -1], [1, 1], [1, -1], [-1, -1], [-1, 1], [1, 1]],
-  },
-  uniforms: {
-    // @ts-ignore
-    seed: regl.prop('seed'),
-  },
-  count: 6,
-  // @ts-ignore
-  framebuffer: colorsFbo,
-})
-
 randomInit({ fbo: positionFbo_1, seed: [0, 0] })
 // randomColors({ seed: [1, 1] })
 randomInit({ fbo: colorsFbo, seed: [5,7]})
 randomInit({ fbo: speedFbo_1, seed: [2,1] })
+
+
+let mouseX = window.innerWidth / 2;
+let mouseY = window.innerHeight / 2;
+
+window.addEventListener("mousemove", (e) => {
+  mouseX = e.clientX  / window.innerWidth;
+  mouseY = 1 - e.clientY / window.innerHeight;
+})
+
+let isMouseDown = false;
+window.addEventListener("mousedown", () => isMouseDown = true)
+window.addEventListener("mouseup", () => isMouseDown = false)
 
 const drawInfluence = regl({
   frag: `
@@ -184,11 +157,12 @@ const drawInfluence = regl({
     uniform float spread;
     uniform float size;
     uniform float alphaScale;
+    varying float factor;
     const float pi = 3.14159265359;
     void main() {
       float dist = sqrt(uv.x * uv.x + uv.y * uv.y);
       float radialFade = min(max((1. - dist) * (1. / influenceScale / spread / size) * alphaScale, 0.), 1.);
-      gl_FragColor = vec4(vColor, radialFade);
+      gl_FragColor = vec4(vColor, radialFade * factor);
     }
   `,
 
@@ -206,13 +180,25 @@ const drawInfluence = regl({
     uniform sampler2D colorsTexture;
     uniform float influenceScale;
     uniform float spread;
+    uniform bool isMouseDown;
+    uniform vec2 mouse;
 
     varying vec3 vColor;
     varying vec2 uv;
+    varying float factor;
 
     void main() {
       vec2 texCoords = offset / n;
-      vec2 pos = texture2D(positionsTexture, texCoords).xy * 2. - vec2(1.);
+
+      vec2 pos_01 = texture2D(positionsTexture, texCoords).xy;
+      vec2 pos = pos_01 * 2. - vec2(1.);
+
+      
+      if (isMouseDown) {
+        factor = 1./min(length(pos_01 - mouse) * 10., 1.);
+      } else {
+        factor = 1.;
+      }
 
       vec2 normalizedPosition = position * size * spread / resolution;
       gl_Position = vec4(
@@ -255,7 +241,11 @@ const drawInfluence = regl({
     // @ts-ignore
     spread: regl.prop('spread'),
     // @ts-ignore
-    alphaScale: regl.prop('alphaScale')
+    alphaScale: regl.prop('alphaScale'),
+    // @ts-ignore
+    isMouseDown: regl.prop('isMouseDown'),
+    // @ts-ignore
+    mouse: regl.prop('mouse'),
   },
 
   depth: {
@@ -370,7 +360,7 @@ const updateSpeed = regl({
       vec3 biased = colorRelations * (influence.rgb - getColor());
       // vec3 biased = getBiasedVal(influence.rgb);
 
-      float there = (length(biased)) * -cos(dist * 0.5 *PI ) * (1. / (dist + 0.01));
+      float there = (length(biased)) * -(dist * dist);
 
       avg += dir * there / max;
     }
@@ -389,7 +379,7 @@ const updateSpeed = regl({
 
     // avg += -(pos - mouse) / 1025.;
 
-    avg = currentSpeed * 0.8 + 0.2 * avg;
+    // avg = currentSpeed * 0.9 + 0.1 * avg;
     
     gl_FragColor = vec4(avg, 0, 1);
   }
@@ -467,61 +457,6 @@ const drawTexture = regl({
 })
 
 
-let mouseX = window.innerWidth / 2;
-let mouseY = window.innerHeight / 2;
-
-window.addEventListener("mousemove", (e) => {
-  mouseX = e.clientX  / window.innerWidth;
-  mouseY = 1 - e.clientY / window.innerHeight;
-})
-
-let isMouseDown = false;
-window.addEventListener("mousedown", () => isMouseDown = true)
-window.addEventListener("mouseup", () => isMouseDown = false)
-
-// const drawMouse = regl({
-//   frag: `
-//     precision highp float;
-//     uniform vec2 mouse;
-//     uniform bool isMouseDown;
-//     uniform sampler2D current;
-//     varying vec2 uv;
-
-//     void main() {
-//       float dist = sqrt(uv.x * uv.x + uv.y * uv.y);
-//       float radialFade = min(max((1. - dist) * (1. / influenceScale / spread / size) * alphaScale, 0.), 1.);
-
-//       vec4 curr = texture2D(current, uv);
-//       gl_FragColor = mix(curr, vec4(0), radialFade);
-//     }
-//   `,
-//   vert: `
-//   precision highp float;
-//   attribute vec2 position;
-//   uniform vec2 mouse;
-//   uniform float sizeFactor;
-//   varying vec2 uv;
-//   void main() {
-//     gl_Position = vec4(position*sizeFactor + mouse), 0, 1);
-//     uv = position / 2. + vec2(.5);
-//   }
-//   `,
-//   uniforms: {
-//     // @ts-ignore
-//     current: regl.prop("current"),
-//     isMouseDown,
-//     mouse: [mouseX, mouseY],
-//     sizeFactor: 0.1,
-//   },
-//   attributes: {
-//     position: [[-1, -1], [1, 1], [1, -1], [-1, -1], [-1, 1], [1, 1]],
-//   },
-//   count: 6,
-//   // @ts-ignore
-//   framebuffer: regl.prop("next"),
-// })
-
-
 let tick = false
 let renderNext = true;
 let autoplay = true;
@@ -549,11 +484,9 @@ regl.frame(() => {
     influenceScale,
     spread,
     alphaScale: 1,
+    isMouseDown,
+    mouse: [mouseX, mouseY],
   })
-
-  // drawMouse({
-  //   current: 
-  // })
 
   updateSpeed({
     positions: currentPosition,
@@ -573,13 +506,14 @@ regl.frame(() => {
     positions: nextPosition,
     resolution,
     influenceScale: 1,
-    spread: 1,
-    alphaScale: 5,
+    spread: 4,
+    alphaScale: 15,
+    isMouseDown,
+    mouse: [mouseX, mouseY],
   })
-  drawTexture({
-    tex: influenceFbo
-  })
-  // randomInit({})
+  // drawTexture({
+  //   tex: influenceFbo
+  // })
   renderNext = autoplay;
 })
 
