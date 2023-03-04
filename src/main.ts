@@ -20,15 +20,16 @@ const regl = Regl({
   
 })
 
-const N = 50 // N particles on the width, N particles on the height.
-const size = 18
+const N = 200 // N particles on the width, N particles on the height.
+const size = 5
+const spread = 9
 
 const resolution = [
   window.innerWidth,
   window.innerHeight,
 ]
 
-const influenceScale = 4
+const influenceScale = 2
 
 const influenceResolution = [
   resolution[0] / influenceScale,
@@ -70,7 +71,7 @@ const influenceTexture = regl.texture({
   min: 'linear',
   mag: 'linear',
   premultiplyAlpha: false, // default = false
-  type: 'float',
+  // type: 'float',
 })
 
 const influenceFbo = regl.framebuffer({
@@ -81,7 +82,7 @@ const influenceFbo = regl.framebuffer({
   depthStencil: false,
   stencil: false,
   color: influenceTexture,
-  colorType: 'float'
+  // colorType: 'float'
 })
 
 // draws some random colors
@@ -170,7 +171,8 @@ const randomColors = regl({
 })
 
 randomInit({ fbo: positionFbo_1, seed: [0, 0] })
-randomColors({ seed: [1, 1] })
+// randomColors({ seed: [1, 1] })
+randomInit({ fbo: colorsFbo, seed: [5,7]})
 randomInit({ fbo: speedFbo_1, seed: [2,1] })
 
 const drawInfluence = regl({
@@ -179,10 +181,13 @@ const drawInfluence = regl({
     varying vec2 uv;
     varying vec3 vColor;
     uniform float influenceScale;
+    uniform float spread;
+    uniform float size;
+    uniform float alphaScale;
     const float pi = 3.14159265359;
     void main() {
       float dist = sqrt(uv.x * uv.x + uv.y * uv.y);
-      float radialFade = min(max((1. - dist) * (1. / influenceScale), 0.), 1.);
+      float radialFade = min(max((1. - dist) * (1. / influenceScale / spread / size) * alphaScale, 0.), 1.);
       gl_FragColor = vec4(vColor, radialFade);
     }
   `,
@@ -200,6 +205,7 @@ const drawInfluence = regl({
     uniform sampler2D positionsTexture;
     uniform sampler2D colorsTexture;
     uniform float influenceScale;
+    uniform float spread;
 
     varying vec3 vColor;
     varying vec2 uv;
@@ -208,7 +214,7 @@ const drawInfluence = regl({
       vec2 texCoords = offset / n;
       vec2 pos = texture2D(positionsTexture, texCoords).xy * 2. - vec2(1.);
 
-      vec2 normalizedPosition = position * size  / resolution;
+      vec2 normalizedPosition = position * size * spread / resolution;
       gl_Position = vec4(
         pos.x + normalizedPosition.x,
         pos.y + normalizedPosition.y,
@@ -246,6 +252,10 @@ const drawInfluence = regl({
     // @ts-ignore
     influenceScale: regl.prop("influenceScale"),
     n: N,
+    // @ts-ignore
+    spread: regl.prop('spread'),
+    // @ts-ignore
+    alphaScale: regl.prop('alphaScale')
   },
 
   depth: {
@@ -256,8 +266,8 @@ const drawInfluence = regl({
     enable: true,
     func: {
       srcRGB: 'src alpha', // written by fragment shader
-      srcAlpha: 'src alpha',
-      dstRGB: 'one', // what's already in the buffer
+      srcAlpha: 'one',
+      dstRGB: 'dst alpha', // what's already in the buffer
       dstAlpha: 'one',
     },
   },
@@ -278,7 +288,7 @@ const updatePosition = regl({
     void main() {
       vec2 texCoord = gl_FragCoord.xy / n;
       vec4 currentPosition = texture2D(current, texCoord);
-      vec4 currentSpeed = (texture2D(speedTexture, texCoord)) / 5.;
+      vec4 currentSpeed = texture2D(speedTexture, texCoord);
 
       gl_FragColor = mod(currentPosition + currentSpeed, 1.);
     }
@@ -319,6 +329,8 @@ const updateSpeed = regl({
   uniform float size;
   uniform float time;
   varying vec2 uv;
+  uniform vec2 mouse;
+  uniform float spread;
 
   #define PI 3.1415926538
 
@@ -341,23 +353,24 @@ const updateSpeed = regl({
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
   }
 
-  const float max = 24.;
+  const float max = 50.;
 
   vec2 getNextSpeed(float sign) {
-    vec2 dxdy = sign * vec2(size) / .1 / resolution;
+    vec2 dxdy = sign * vec2(size * spread) / 1. / resolution;
     vec2 avg = vec2(0);
     for (float i = 0.; i < max; i++) {
+      // float dist = floor(i * 5. / max) / 5.;
       float dist = i / max;
       vec2 dir = vec2(
-        sin(i * 2. * PI / max * 3.), 
-        cos(i * 2. * PI / max * 3.)
+        sin(i * 2. * PI / max * 5. + rand(gl_FragCoord.xy)), 
+        cos(i * 2. * PI / max * 5. + rand(gl_FragCoord.xy * 1.1))
       ) * dxdy;
 
       vec4 influence = sampleInfluence(dir * dist);
-      vec3 biased = colorRelations * influence.rgb;
+      vec3 biased = colorRelations * (influence.rgb - getColor());
       // vec3 biased = getBiasedVal(influence.rgb);
 
-      float there = length(biased) * -cos(dist) * 3. * PI;
+      float there = (1. - length(biased)) * -cos(dist * 2. * PI) * (1. / (dist + 0.01));
 
       avg += dir * there / max;
     }
@@ -372,11 +385,11 @@ const updateSpeed = regl({
     vec3 color = getColor();
 
     vec2 avg = getNextSpeed(-1.) + getNextSpeed(1.);
-    avg /= 2.;
+    // avg /= 2.;
 
-    // avg /= 10.;
+    // avg += -(pos - mouse) / 1025.;
 
-    avg += -(pos- vec2(.5)) / 2.;
+    // avg = currentSpeed * 0.8 + 0.2 * avg;
     
     gl_FragColor = vec4(avg, 0, 1);
   }
@@ -396,10 +409,11 @@ const updateSpeed = regl({
     // @ts-ignore
     positions: regl.prop("positions"),
     colors: colorsFbo,
+
     colorRelations: [
-      .5, -.8, .7,
-      -.8, .5, .2,
-      .8, 1, -.8,
+      -0.546, 0.295, 0.685,
+      -.646, 0.658, -0.552,
+      0.477, 0.627, -.532,
     ],
     n: N,
     resolution,
@@ -408,6 +422,10 @@ const updateSpeed = regl({
     time: regl.prop('time'),
     // @ts-ignore
     oldSpeed: regl.prop('oldSpeed'),
+    // @ts-ignore
+    mouse: regl.prop('mouse'),
+    spread,
+
   },
   attributes: {
     position: [[-1, -1], [1, 1], [1, -1], [-1, -1], [-1, 1], [1, 1]],
@@ -448,6 +466,62 @@ const drawTexture = regl({
   count: 6,
 })
 
+
+let mouseX = window.innerWidth / 2;
+let mouseY = window.innerHeight / 2;
+
+window.addEventListener("mousemove", (e) => {
+  mouseX = e.clientX  / window.innerWidth;
+  mouseY = 1 - e.clientY / window.innerHeight;
+})
+
+let isMouseDown = false;
+window.addEventListener("mousedown", () => isMouseDown = true)
+window.addEventListener("mouseup", () => isMouseDown = false)
+
+// const drawMouse = regl({
+//   frag: `
+//     precision highp float;
+//     uniform vec2 mouse;
+//     uniform bool isMouseDown;
+//     uniform sampler2D current;
+//     varying vec2 uv;
+
+//     void main() {
+//       float dist = sqrt(uv.x * uv.x + uv.y * uv.y);
+//       float radialFade = min(max((1. - dist) * (1. / influenceScale / spread / size) * alphaScale, 0.), 1.);
+
+//       vec4 curr = texture2D(current, uv);
+//       gl_FragColor = mix(curr, vec4(0), radialFade);
+//     }
+//   `,
+//   vert: `
+//   precision highp float;
+//   attribute vec2 position;
+//   uniform vec2 mouse;
+//   uniform float sizeFactor;
+//   varying vec2 uv;
+//   void main() {
+//     gl_Position = vec4(position*sizeFactor + mouse), 0, 1);
+//     uv = position / 2. + vec2(.5);
+//   }
+//   `,
+//   uniforms: {
+//     // @ts-ignore
+//     current: regl.prop("current"),
+//     isMouseDown,
+//     mouse: [mouseX, mouseY],
+//     sizeFactor: 0.1,
+//   },
+//   attributes: {
+//     position: [[-1, -1], [1, 1], [1, -1], [-1, -1], [-1, 1], [1, 1]],
+//   },
+//   count: 6,
+//   // @ts-ignore
+//   framebuffer: regl.prop("next"),
+// })
+
+
 let tick = false
 let renderNext = true;
 let autoplay = true;
@@ -473,13 +547,20 @@ regl.frame(() => {
     resolution: influenceResolution,
     positions: currentPosition,
     influenceScale,
+    spread,
+    alphaScale: 1,
   })
+
+  // drawMouse({
+  //   current: 
+  // })
 
   updateSpeed({
     positions: currentPosition,
     oldSpeed: currentSpeed,
     target: nextSpeed,
     time: Date.now(),
+    mouse: [mouseX, mouseY],
   })
 
   updatePosition({
@@ -492,6 +573,8 @@ regl.frame(() => {
     positions: nextPosition,
     resolution,
     influenceScale: 1,
+    spread: 1,
+    alphaScale: 3,
   })
   drawTexture({
     tex: influenceFbo
@@ -508,4 +591,3 @@ window.addEventListener("keyup", (e) => {
     renderNext = autoplay
   }
 })
-  
