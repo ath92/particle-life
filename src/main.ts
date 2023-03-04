@@ -370,7 +370,7 @@ const updateSpeed = regl({
       vec3 biased = colorRelations * (influence.rgb - getColor());
       // vec3 biased = getBiasedVal(influence.rgb);
 
-      float there = (1. - length(biased)) * -cos(dist * 2. * PI) * (1. / (dist + 0.01));
+      float there = (length(biased)) * -cos(dist * 0.5 *PI ) * (1. / (dist + 0.01));
 
       avg += dir * there / max;
     }
@@ -389,7 +389,7 @@ const updateSpeed = regl({
 
     // avg += -(pos - mouse) / 1025.;
 
-    // avg = currentSpeed * 0.8 + 0.2 * avg;
+    avg = currentSpeed * 0.8 + 0.2 * avg;
     
     gl_FragColor = vec4(avg, 0, 1);
   }
@@ -574,7 +574,7 @@ regl.frame(() => {
     resolution,
     influenceScale: 1,
     spread: 1,
-    alphaScale: 3,
+    alphaScale: 5,
   })
   drawTexture({
     tex: influenceFbo
