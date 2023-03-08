@@ -1,4 +1,4 @@
-import Regl from "regl"
+import Regl, { BlendingFunctionSeparate, Framebuffer2D } from "regl"
 import "./style.css"
 
 
@@ -20,16 +20,16 @@ const regl = Regl({
   
 })
 
-const N = 200 // N particles on the width, N particles on the height.
-const size = 1
-const spread = 25
+const N = 300 // N particles on the width, N particles on the height.
+const size = 10
+const spread = 2
 
 const resolution = [
   window.innerWidth,
   window.innerHeight,
 ]
 
-const influenceScale = 2
+const influenceScale = 4
 
 const influenceResolution = [
   resolution[0] / influenceScale,
@@ -51,6 +51,7 @@ const positionFbo_2 = regl.framebuffer({
 const colorsFbo = regl.framebuffer({
   width: N,
   height: N,
+  colorType: 'float',
 })
 const speedFbo_1 = regl.framebuffer({
   width: N,
@@ -71,7 +72,7 @@ const influenceTexture = regl.texture({
   min: 'linear',
   mag: 'linear',
   premultiplyAlpha: false, // default = false
-  // type: 'float',
+  type: 'float',
 })
 
 const influenceFbo = regl.framebuffer({
@@ -82,7 +83,7 @@ const influenceFbo = regl.framebuffer({
   depthStencil: false,
   stencil: false,
   color: influenceTexture,
-  // colorType: 'float'
+  colorType: 'float'
 })
 
 // draws some random colors
@@ -101,6 +102,53 @@ const randomInit = regl({
         rand(pos * 2. + seed),
         rand(pos * 3. + seed)
       );
+      // c = c / length(c);
+      gl_FragColor = vec4(
+        c,
+        1.
+      );
+    }
+  `,
+  vert: `
+    precision highp float;
+    attribute vec2 position;
+    varying vec2 pos;
+
+    void main () {
+      pos = position;
+      gl_Position = vec4(position, 0, 1);
+    }
+  `,
+  attributes: {
+    position: [[-1, -1], [1, 1], [1, -1], [-1, -1], [-1, 1], [1, 1]],
+  },
+  uniforms: {
+    // @ts-ignore
+    seed: regl.prop('seed'),
+  },
+  count: 6,
+  // @ts-ignore
+  framebuffer: regl.prop('fbo'),
+})
+
+
+// draws some random colors
+const randomColors = regl({
+  frag: `
+    precision highp float;
+    varying vec2 pos;
+    uniform vec2 seed;
+    float rand(vec2 co){
+      return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+    }
+
+    void main () {
+      vec3 c = vec3(
+        rand(pos + seed),
+        rand(pos * 2. + seed),
+        rand(pos * 3. + seed)
+      );
+      // c = vec3(1);
       c = c / length(c);
       gl_FragColor = vec4(
         c,
@@ -131,8 +179,8 @@ const randomInit = regl({
 })
 
 randomInit({ fbo: positionFbo_1, seed: [0, 0] })
-// randomColors({ seed: [1, 1] })
-randomInit({ fbo: colorsFbo, seed: [5,7]})
+randomColors({fbo: colorsFbo, seed: [1, 1] })
+// randomInit({ fbo: colorsFbo, seed: [5,7]})
 randomInit({ fbo: speedFbo_1, seed: [2,1] })
 
 
@@ -158,11 +206,12 @@ const drawInfluence = regl({
     uniform float size;
     uniform float alphaScale;
     varying float factor;
-    const float pi = 3.14159265359;
+    
     void main() {
       float dist = sqrt(uv.x * uv.x + uv.y * uv.y);
       float radialFade = min(max((1. - dist) * (1. / influenceScale / spread / size) * alphaScale, 0.), 1.);
-      gl_FragColor = vec4(vColor, radialFade * factor);
+      float alpha = radialFade * factor;
+      gl_FragColor = vec4(vColor * alpha, alpha);
     }
   `,
 
@@ -200,7 +249,7 @@ const drawInfluence = regl({
         factor = 1.;
       }
 
-      vec2 normalizedPosition = position * size * spread / resolution;
+      vec2 normalizedPosition = position * size / resolution;
       gl_Position = vec4(
         pos.x + normalizedPosition.x,
         pos.y + normalizedPosition.y,
@@ -231,7 +280,8 @@ const drawInfluence = regl({
   uniforms: {
     // @ts-ignore
     resolution: regl.prop("resolution"),
-    size,
+    // @ts-ignore
+    size: regl.prop('size'),
     // @ts-ignore
     positionsTexture: regl.prop('positions'),
     colorsTexture: colorsFbo,
@@ -254,12 +304,8 @@ const drawInfluence = regl({
 
   blend: {
     enable: true,
-    func: {
-      srcRGB: 'src alpha', // written by fragment shader
-      srcAlpha: 'one',
-      dstRGB: 'dst alpha', // what's already in the buffer
-      dstAlpha: 'one',
-    },
+    // @ts-ignore
+    func: regl.prop("blendFunc"),
   },
   
   count: 6,
@@ -348,6 +394,9 @@ const updateSpeed = regl({
   vec2 getNextSpeed(float sign) {
     vec2 dxdy = sign * vec2(size * spread) / 1. / resolution;
     vec2 avg = vec2(0);
+    vec3 color = getColor();
+    vec2 bestDir = vec2(1,0);
+    float best = 0.;
     for (float i = 0.; i < max; i++) {
       // float dist = floor(i * 5. / max) / 5.;
       float dist = i / max;
@@ -357,13 +406,22 @@ const updateSpeed = regl({
       ) * dxdy;
 
       vec4 influence = sampleInfluence(dir * dist);
-      vec3 biased = colorRelations * (influence.rgb - getColor());
+
+      vec3 biased = colorRelations * (influence.rgb * color);
       // vec3 biased = getBiasedVal(influence.rgb);
 
-      float there = (length(biased)) * -(dist * dist);
+      float ln = biased.r + biased.g + biased.b;
+      if (abs(ln) > best) {
+        best = abs(ln);
+        bestDir = dir;
+      }
+
+      float there = ln * (dist * dist);
 
       avg += dir * there / max;
     }
+    float here = dot(sampleInfluence(vec2(0)).rgb, color);
+    avg += -here * bestDir / max * 2.;
     return avg;
   }
 
@@ -379,6 +437,7 @@ const updateSpeed = regl({
 
     // avg += -(pos - mouse) / 1025.;
 
+    // avg = avg / length(avg) / 1000.;
     // avg = currentSpeed * 0.9 + 0.1 * avg;
     
     gl_FragColor = vec4(avg, 0, 1);
@@ -401,7 +460,7 @@ const updateSpeed = regl({
     colors: colorsFbo,
 
     colorRelations: [
-      -0.546, 0.295, 0.685,
+      0.546, 0.295, 0.685,
       -.646, 0.658, -0.552,
       0.477, 0.627, -.532,
     ],
@@ -456,7 +515,26 @@ const drawTexture = regl({
   count: 6,
 })
 
+const inf = (positions: Framebuffer2D, useTarget = true) => drawInfluence({
+  target: useTarget ? influenceFbo : undefined,
+  resolution: influenceResolution,
+  positions,
+  influenceScale,
+  spread,
+  size,
+  alphaScale: 1,
+  isMouseDown,
+  mouse: [mouseX, mouseY],
+  blendFunc: {
+    srcRGB: 'one minus dst color', // written by fragment shader
+    srcAlpha: 'one',
+    dstRGB: 'one', // what's already in the buffer
+    dstAlpha: 'one',
+  },
+})
 
+
+let debug = false
 let tick = false
 let renderNext = true;
 let autoplay = true;
@@ -477,16 +555,7 @@ regl.frame(() => {
   const currentSpeed = tick ? speedFbo_1 : speedFbo_2
   const nextSpeed = tick ? speedFbo_2 : speedFbo_1
 
-  drawInfluence({
-    target: influenceFbo,
-    resolution: influenceResolution,
-    positions: currentPosition,
-    influenceScale,
-    spread,
-    alphaScale: 1,
-    isMouseDown,
-    mouse: [mouseX, mouseY],
-  })
+  inf(currentPosition)
 
   updateSpeed({
     positions: currentPosition,
@@ -502,18 +571,29 @@ regl.frame(() => {
     speed: nextSpeed,
   })
 
-  drawInfluence({
-    positions: nextPosition,
-    resolution,
-    influenceScale: 1,
-    spread: 4,
-    alphaScale: 15,
-    isMouseDown,
-    mouse: [mouseX, mouseY],
-  })
-  // drawTexture({
-  //   tex: influenceFbo
-  // })
+  if (!debug) {
+    drawInfluence({
+      positions: nextPosition,
+      resolution,
+      influenceScale: 1,
+      spread: 1,
+      size: 5,
+      alphaScale: 15,
+      isMouseDown,
+      mouse: [mouseX, mouseY],
+      blendFunc: {
+        srcRGB: 'src alpha', // written by fragment shader
+        srcAlpha: 'src alpha',
+        dstRGB: 'one minus src alpha', // what's already in the buffer
+        dstAlpha: 'one minus src alpha',
+      },
+    })
+    drawTexture({
+      tex: influenceFbo
+    })
+  } else {
+    inf(currentPosition, false)
+  }
   renderNext = autoplay;
 })
 
@@ -523,5 +603,7 @@ window.addEventListener("keyup", (e) => {
   } else if (e.key === "p") {
     autoplay = !autoplay
     renderNext = autoplay
+  } else if (e.key === "d") {
+    debug = !debug
   }
 })
