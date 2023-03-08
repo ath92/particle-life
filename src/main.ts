@@ -1,4 +1,4 @@
-import Regl, { BlendingFunctionSeparate, Framebuffer2D } from "regl"
+import Regl, { Framebuffer2D } from "regl"
 import "./style.css"
 
 
