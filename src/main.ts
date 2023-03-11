@@ -19,7 +19,7 @@ const regl = Regl({
   
 })
 
-const N = 300 // N particles on the width, N particles on the height.
+const N = 200 // N particles on the width, N particles on the height.
 const size = 5
 const spread = 5
 
