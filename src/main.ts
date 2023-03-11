@@ -589,11 +589,11 @@ regl.frame(() => {
         dstAlpha: 'one',
       },
     })
-    // drawTexture({
-    //   tex: influenceFbo
-    // })
   } else {
     inf(currentPosition, false)
+    drawTexture({
+      tex: positionFbo_2
+    })
   }
   renderNext = autoplay;
 })
