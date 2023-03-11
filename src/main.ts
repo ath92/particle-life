@@ -1,7 +1,6 @@
 import Regl, { Framebuffer2D } from "regl"
 import "./style.css"
 
-
 const canvas = document.createElement("canvas")
 canvas.width = window.innerWidth
 canvas.height = window.innerHeight
@@ -20,7 +19,7 @@ const regl = Regl({
   
 })
 
-const N = 200 // N particles on the width, N particles on the height.
+const N = 300 // N particles on the width, N particles on the height.
 const size = 5
 const spread = 5
 
@@ -205,12 +204,11 @@ const drawInfluence = regl({
     uniform float spread;
     uniform float size;
     uniform float alphaScale;
-    varying float factor;
     
     void main() {
       float dist = sqrt(uv.x * uv.x + uv.y * uv.y);
       float radialFade = min(max((1. - dist) * (1. / influenceScale / spread / size) * alphaScale, 0.), 1.);
-      float alpha = radialFade * factor;
+      float alpha = radialFade;
       gl_FragColor = vec4(vColor * alpha, alpha);
     }
   `,
@@ -229,25 +227,16 @@ const drawInfluence = regl({
     uniform sampler2D colorsTexture;
     uniform float influenceScale;
     uniform float spread;
-    uniform bool isMouseDown;
     uniform vec2 mouse;
 
     varying vec3 vColor;
     varying vec2 uv;
-    varying float factor;
 
     void main() {
       vec2 texCoords = offset / n;
 
       vec2 pos_01 = texture2D(positionsTexture, texCoords).xy;
       vec2 pos = pos_01 * 2. - vec2(1.);
-
-      
-      if (isMouseDown) {
-        factor = 1./min(length(pos_01 - mouse) * 10., 1.);
-      } else {
-        factor = 1.;
-      }
 
       vec2 normalizedPosition = position * size / resolution;
       gl_Position = vec4(
@@ -367,6 +356,7 @@ const updateSpeed = regl({
   varying vec2 uv;
   uniform vec2 mouse;
   uniform float spread;
+  uniform bool isMouseDown;
 
   #define PI 3.1415926538
 
@@ -436,7 +426,7 @@ const updateSpeed = regl({
     vec2 avg = getNextSpeed(-1.) + getNextSpeed(1.);
     // avg *= 10.;
 
-    // avg += -(pos - mouse) / 1025.;
+    if (isMouseDown) avg += -(pos - mouse) / 125.;
 
     avg = avg / length(avg) / 1000.;
     // avg = currentSpeed * 0.9 + 0.1 * avg;
@@ -474,6 +464,8 @@ const updateSpeed = regl({
     oldSpeed: regl.prop('oldSpeed'),
     // @ts-ignore
     mouse: regl.prop('mouse'),
+    // @ts-ignore
+    isMouseDown: regl.prop('isMouseDown'),
     spread,
 
   },
@@ -541,9 +533,6 @@ let renderNext = true;
 let autoplay = true;
 regl.frame(() => {
   if (!renderNext) return
-  // regl.clear({
-  //   color: [0, 0, 0, 0]
-  // })
   influenceFbo.use(() => {
     regl.clear({
       color: [0, 0, 0, 0]
@@ -564,6 +553,7 @@ regl.frame(() => {
     target: nextSpeed,
     time: Date.now(),
     mouse: [mouseX, mouseY],
+    isMouseDown,
   })
 
   updatePosition({
