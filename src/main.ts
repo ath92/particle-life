@@ -20,16 +20,16 @@ const regl = Regl({
   
 })
 
-const N = 300 // N particles on the width, N particles on the height.
-const size = 10
-const spread = 2
+const N = 200 // N particles on the width, N particles on the height.
+const size = 5
+const spread = 5
 
 const resolution = [
   window.innerWidth,
   window.innerHeight,
 ]
 
-const influenceScale = 4
+const influenceScale = 2
 
 const influenceResolution = [
   resolution[0] / influenceScale,
@@ -411,8 +411,8 @@ const updateSpeed = regl({
       // vec3 biased = getBiasedVal(influence.rgb);
 
       float ln = biased.r + biased.g + biased.b;
-      if (abs(ln) > best) {
-        best = abs(ln);
+      if (abs(ln) > abs(best)) {
+        best = ln;
         bestDir = dir;
       }
 
@@ -420,7 +420,8 @@ const updateSpeed = regl({
 
       avg += dir * there / max;
     }
-    float here = dot(sampleInfluence(vec2(0)).rgb, color);
+    // float here = dot(sampleInfluence(vec2(0)).rgb, color);
+    float here = sampleInfluence(vec2(0)).a;
     avg += -here * bestDir / max * 2.;
     return avg;
   }
@@ -433,11 +434,11 @@ const updateSpeed = regl({
     vec3 color = getColor();
 
     vec2 avg = getNextSpeed(-1.) + getNextSpeed(1.);
-    // avg /= 2.;
+    // avg *= 10.;
 
     // avg += -(pos - mouse) / 1025.;
 
-    // avg = avg / length(avg) / 1000.;
+    avg = avg / length(avg) / 1000.;
     // avg = currentSpeed * 0.9 + 0.1 * avg;
     
     gl_FragColor = vec4(avg, 0, 1);
@@ -522,7 +523,7 @@ const inf = (positions: Framebuffer2D, useTarget = true) => drawInfluence({
   influenceScale,
   spread,
   size,
-  alphaScale: 1,
+  alphaScale: 4,
   isMouseDown,
   mouse: [mouseX, mouseY],
   blendFunc: {
@@ -540,9 +541,9 @@ let renderNext = true;
 let autoplay = true;
 regl.frame(() => {
   if (!renderNext) return
-  regl.clear({
-    color: [0, 0, 0, 0]
-  })
+  // regl.clear({
+  //   color: [0, 0, 0, 0]
+  // })
   influenceFbo.use(() => {
     regl.clear({
       color: [0, 0, 0, 0]
@@ -577,20 +578,20 @@ regl.frame(() => {
       resolution,
       influenceScale: 1,
       spread: 1,
-      size: 5,
-      alphaScale: 15,
+      size: 3,
+      alphaScale: 5,
       isMouseDown,
       mouse: [mouseX, mouseY],
       blendFunc: {
-        srcRGB: 'src alpha', // written by fragment shader
-        srcAlpha: 'src alpha',
-        dstRGB: 'one minus src alpha', // what's already in the buffer
-        dstAlpha: 'one minus src alpha',
+        srcRGB: 'one minus dst color', // written by fragment shader
+        srcAlpha: 'one',
+        dstRGB: 'one', // what's already in the buffer
+        dstAlpha: 'one',
       },
     })
-    drawTexture({
-      tex: influenceFbo
-    })
+    // drawTexture({
+    //   tex: influenceFbo
+    // })
   } else {
     inf(currentPosition, false)
   }
