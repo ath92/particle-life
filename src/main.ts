@@ -20,14 +20,14 @@ const regl = Regl({
 })
 
 const state = {
-  N: parseFloat(new URLSearchParams(window.location.search).get("n")!) || 100,
+  N: parseFloat(new URLSearchParams(window.location.search).get("n")!) || Math.round(window.innerWidth * window.innerHeight / 10000),
   influenceScale: parseFloat(new URLSearchParams(window.location.search).get("influence-scale")!) ||  2,
   size: 5,
   spread: 5,
   alphaScale: 10,
   rr: 0.546,rg: 0.295, rb: 0.685,
   gr: -.646, gg: 0.658, gb: 0.552,
-  br:  0.477, bg: 0.627, bb: -.532,
+  br:  0.477, bg: 0.627, bb: .532,
 }
 
 declare global {
