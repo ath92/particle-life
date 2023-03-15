@@ -19,16 +19,69 @@ const regl = Regl({
   
 })
 
-const N = 200 // N particles on the width, N particles on the height.
-const size = 5
-const spread = 5
+const state = {
+  N: parseFloat(new URLSearchParams(window.location.search).get("n")!) || 100,
+  influenceScale: parseFloat(new URLSearchParams(window.location.search).get("influence-scale")!) ||  2,
+  size: 5,
+  spread: 5,
+  alphaScale: 10,
+  rr: 0.546,rg: 0.295, rb: 0.685,
+  gr: -.646, gg: 0.658, gb: 0.552,
+  br:  0.477, bg: 0.627, bb: -.532,
+}
+
+declare global {
+  interface Window {
+    state: typeof state
+  }
+}
+
+window.state = state
+
+function stringify(s: Partial<typeof state>) {
+  return Object.fromEntries(Object.entries(s).map(([key, value]) => [key, `${value}`]))
+}
+
+function setState(partial: Partial<typeof state>) {
+  window.state = {
+    ...window.state,
+    ...partial,
+  }
+  const params = new URLSearchParams(stringify(window.state));
+  window.history.replaceState({}, '', `${location.pathname}?${params}`);
+}
+
+function initStateBindings() {
+  const params = Object.fromEntries(new URLSearchParams(location.search).entries()) as Partial<Record<keyof typeof state, string>>;
+
+  const toLoad = { ...window.state, ...params}
+  for (let key in toLoad) {
+    console.log(key)
+    const boundEl = document.querySelector<HTMLInputElement>(`[data-state="${key}"]`);
+    const value = toLoad[key as keyof typeof state]
+    window.state[key as keyof typeof state] = typeof value === "string" ? parseFloat(value) : value;
+    
+    if (!boundEl) continue;
+
+    boundEl.value =`${value}`;
+    console.log(params, toLoad, key, value, window.state)
+    boundEl.addEventListener("input", (e) => {
+        setState({
+            [key]: parseFloat((e?.target as HTMLInputElement)?.value)
+        })
+    })
+  }
+};
+
+initStateBindings();
+
+const N = state.N
+const influenceScale = state.influenceScale
 
 const resolution = [
   window.innerWidth,
   window.innerHeight,
 ]
-
-const influenceScale = 2
 
 const influenceResolution = [
   resolution[0] / influenceScale,
@@ -147,8 +200,17 @@ const randomColors = regl({
         rand(pos * 2. + seed),
         rand(pos * 3. + seed)
       );
-      // c = vec3(1);
+      // // c = vec3(1);
       c = c / length(c);
+      // float r = rand(pos * seed);
+      // vec3 c = vec3(0);
+      // if (r < .33) {
+      //   c = vec3(1, 0, 0);
+      // } else if (r > 0.33 && r < 0.67) {
+      //   c = vec3(0, 1, 0);
+      // } else {
+      //   c = vec3(0, 0, 1);
+      // }
       gl_FragColor = vec4(
         c,
         1.
@@ -186,14 +248,14 @@ randomInit({ fbo: speedFbo_1, seed: [2,1] })
 let mouseX = window.innerWidth / 2;
 let mouseY = window.innerHeight / 2;
 
-window.addEventListener("mousemove", (e) => {
+canvas.addEventListener("mousemove", (e) => {
   mouseX = e.clientX  / window.innerWidth;
   mouseY = 1 - e.clientY / window.innerHeight;
 })
 
 let isMouseDown = false;
-window.addEventListener("mousedown", () => isMouseDown = true)
-window.addEventListener("mouseup", () => isMouseDown = false)
+canvas.addEventListener("mousedown", () => isMouseDown = true)
+canvas.addEventListener("mouseup", () => isMouseDown = false)
 
 const drawInfluence = regl({
   frag: `
@@ -397,7 +459,7 @@ const updateSpeed = regl({
 
       vec4 influence = sampleInfluence(dir * dist);
 
-      vec3 biased = colorRelations * (influence.rgb * color);
+      vec3 biased = colorRelations * color * influence.rgb;
       // vec3 biased = getBiasedVal(influence.rgb);
 
       float ln = biased.r + biased.g + biased.b;
@@ -450,14 +512,20 @@ const updateSpeed = regl({
     positions: regl.prop("positions"),
     colors: colorsFbo,
 
-    colorRelations: [
-      0.546, 0.295, 0.685,
-      -.646, 0.658, -0.552,
-      0.477, 0.627, -.532,
+    colorRelations: () => [
+      window.state.rr,
+      window.state.rg,
+      window.state.rb,
+      window.state.gr,
+      window.state.gg,
+      window.state.gb,
+      window.state.br,
+      window.state.bg,
+      window.state.bb,
     ],
     n: N,
     resolution,
-    size,
+    size: window.state.size,
     //@ts-ignore
     time: regl.prop('time'),
     // @ts-ignore
@@ -466,7 +534,7 @@ const updateSpeed = regl({
     mouse: regl.prop('mouse'),
     // @ts-ignore
     isMouseDown: regl.prop('isMouseDown'),
-    spread,
+    spread: window.state.spread,
 
   },
   attributes: {
@@ -513,9 +581,9 @@ const inf = (positions: Framebuffer2D, useTarget = true) => drawInfluence({
   resolution: influenceResolution,
   positions,
   influenceScale,
-  spread,
-  size,
-  alphaScale: 4,
+  spread: window.state.spread,
+  size: window.state.size,
+  alphaScale: window.state.alphaScale,
   isMouseDown,
   mouse: [mouseX, mouseY],
   blendFunc: {
