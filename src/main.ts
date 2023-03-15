@@ -16,15 +16,21 @@ const regl = Regl({
     'EXT_float_blend'
   ],
   pixelRatio: 2,
-  
+  attributes: {
+    preserveDrawingBuffer: false,
+    depth: false,
+    alpha: true,
+    premultipliedAlpha: false,
+    stencil: false,
+  }
 })
 
 const state = {
   N: parseFloat(new URLSearchParams(window.location.search).get("n")!) || Math.round(window.innerWidth * window.innerHeight / 10000),
   influenceScale: parseFloat(new URLSearchParams(window.location.search).get("influence-scale")!) ||  2,
-  size: 5,
+  size: 12.5,
   spread: 5,
-  alphaScale: 10,
+  alphaScale: 5,
   rr: 0.546,rg: 0.295, rb: 0.685,
   gr: -.646, gg: 0.658, gb: 0.552,
   br:  0.477, bg: 0.627, bb: .532,
@@ -202,7 +208,7 @@ const randomColors = regl({
       );
       // // c = vec3(1);
       c = c / length(c);
-      // float r = rand(pos * seed);
+      // float r = rand(pos * seed * gl_FragCoord.xy);
       // vec3 c = vec3(0);
       // if (r < .33) {
       //   c = vec3(1, 0, 0);
@@ -576,6 +582,41 @@ const drawTexture = regl({
   count: 6,
 })
 
+const prevFrame = regl.texture()
+
+const drawPrevFrame = regl({
+  frag: `
+    precision highp float;
+    varying vec2 uv;
+    uniform sampler2D prev;
+    void main() {
+      vec4 tex = texture2D(prev, uv);
+      gl_FragColor = vec4(tex.rgb * 0.85, 1);
+    }
+  `,
+  vert: `
+    precision highp float;
+    attribute vec2 position;
+    varying vec2 uv;
+    void main() {
+      gl_Position = vec4(position, 0, 1);
+      uv = position / 2. + vec2(.5);
+    }
+  `,
+  uniforms: {
+    prev: prevFrame,
+  },
+  attributes: {
+    position: [[-1, -1], [1, 1], [1, -1], [-1, -1], [-1, 1], [1, 1]],
+  },
+  count: 6,
+  blend: {
+    enable: true,
+    equation: "add"
+  },
+  depth: { enable: false },
+})
+
 const inf = (positions: Framebuffer2D, useTarget = true) => drawInfluence({
   target: useTarget ? influenceFbo : undefined,
   resolution: influenceResolution,
@@ -630,14 +671,16 @@ regl.frame(() => {
     speed: nextSpeed,
   })
 
+  drawPrevFrame()
   if (!debug) {
+
     drawInfluence({
       positions: nextPosition,
       resolution,
       influenceScale: 1,
       spread: 1,
       size: 3,
-      alphaScale: 5,
+      alphaScale: 1,
       isMouseDown,
       mouse: [mouseX, mouseY],
       blendFunc: {
@@ -653,6 +696,9 @@ regl.frame(() => {
       tex: positionFbo_2
     })
   }
+  prevFrame({
+    copy: true
+  })
   renderNext = autoplay;
 })
 
