@@ -680,14 +680,14 @@ regl.frame(() => {
       influenceScale: 1,
       spread: 1,
       size: 3,
-      alphaScale: 1,
+      alphaScale: 3,
       isMouseDown,
       mouse: [mouseX, mouseY],
       blendFunc: {
-        srcRGB: 'one minus dst color', // written by fragment shader
-        srcAlpha: 'one',
-        dstRGB: 'one', // what's already in the buffer
-        dstAlpha: 'one',
+        srcRGB: 'src alpha', // written by fragment shader
+        srcAlpha: 'src alpha',
+        dstRGB: 'dst alpha', // what's already in the buffer
+        dstAlpha: 'one minus src alpha',
       },
     })
   } else {
