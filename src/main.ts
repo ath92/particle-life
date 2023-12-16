@@ -1,19 +1,19 @@
-import Regl, { Framebuffer2D } from "regl"
-import "./style.css"
+import Regl, { Framebuffer2D } from "regl";
+import "./style.css";
 
-const canvas = document.createElement("canvas")
-canvas.width = window.innerWidth
-canvas.height = window.innerHeight
-document.body.appendChild(canvas)
+const canvas = document.createElement("canvas");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+document.body.appendChild(canvas);
 
 const regl = Regl({
   canvas,
   extensions: [
-    'angle_instanced_arrays', 
-    'OES_texture_float', 
-    'EXT_blend_minmax', 
-    'oes_texture_float_linear', 
-    'EXT_float_blend'
+    "angle_instanced_arrays",
+    "OES_texture_float",
+    "EXT_blend_minmax",
+    "oes_texture_float_linear",
+    "EXT_float_blend",
   ],
   pixelRatio: 2,
   attributes: {
@@ -22,116 +22,131 @@ const regl = Regl({
     alpha: true,
     premultipliedAlpha: false,
     stencil: false,
-  }
-})
+  },
+});
 
 const state = {
-  N: parseFloat(new URLSearchParams(window.location.search).get("n")!) || Math.round(window.innerWidth * window.innerHeight / 10000),
-  influenceScale: parseFloat(new URLSearchParams(window.location.search).get("influence-scale")!) ||  2,
+  N:
+    parseFloat(new URLSearchParams(window.location.search).get("n")!) ||
+    Math.round((window.innerWidth * window.innerHeight) / 10000),
+  influenceScale:
+    parseFloat(
+      new URLSearchParams(window.location.search).get("influence-scale")!,
+    ) || 2,
   size: 12.5,
-  spread: 5,
-  alphaScale: 5,
-  rr: 0.546,rg: 0.295, rb: 0.685,
-  gr: -.646, gg: 0.658, gb: 0.552,
-  br:  0.477, bg: 0.627, bb: .532,
-}
+  spread: 1.5,
+  alphaScale: 1,
+  rr: 0.546,
+  rg: 0.295,
+  rb: 0.685,
+  gr: -0.646,
+  gg: 0.658,
+  gb: 0.552,
+  br: 0.477,
+  bg: 0.627,
+  bb: 0.532,
+};
 
 declare global {
   interface Window {
-    state: typeof state
+    state: typeof state;
   }
 }
 
-window.state = state
+window.state = state;
 
 function stringify(s: Partial<typeof state>) {
-  return Object.fromEntries(Object.entries(s).map(([key, value]) => [key, `${value}`]))
+  return Object.fromEntries(
+    Object.entries(s).map(([key, value]) => [key, `${value}`]),
+  );
 }
 
 function setState(partial: Partial<typeof state>) {
   window.state = {
     ...window.state,
     ...partial,
-  }
+  };
   const params = new URLSearchParams(stringify(window.state));
-  window.history.replaceState({}, '', `${location.pathname}?${params}`);
+  window.history.replaceState({}, "", `${location.pathname}?${params}`);
 }
 
 function initStateBindings() {
-  const params = Object.fromEntries(new URLSearchParams(location.search).entries()) as Partial<Record<keyof typeof state, string>>;
+  const params = Object.fromEntries(
+    new URLSearchParams(location.search).entries(),
+  ) as Partial<Record<keyof typeof state, string>>;
 
-  const toLoad = { ...window.state, ...params}
+  const toLoad = { ...window.state, ...params };
   for (let key in toLoad) {
-    console.log(key)
-    const boundEl = document.querySelector<HTMLInputElement>(`[data-state="${key}"]`);
-    const value = toLoad[key as keyof typeof state]
-    window.state[key as keyof typeof state] = typeof value === "string" ? parseFloat(value) : value;
-    
+    console.log(key);
+    const boundEl = document.querySelector<HTMLInputElement>(
+      `[data-state="${key}"]`,
+    );
+    const value = toLoad[key as keyof typeof state];
+    window.state[key as keyof typeof state] =
+      typeof value === "string" ? parseFloat(value) : value;
+
     if (!boundEl) continue;
 
-    boundEl.value =`${value}`;
-    console.log(params, toLoad, key, value, window.state)
+    boundEl.value = `${value}`;
+    console.log(params, toLoad, key, value, window.state);
     boundEl.addEventListener("input", (e) => {
-        setState({
-            [key]: parseFloat((e?.target as HTMLInputElement)?.value)
-        })
-    })
+      setState({
+        [key]: parseFloat((e?.target as HTMLInputElement)?.value),
+      });
+    });
   }
-};
+}
 
 initStateBindings();
 
-const N = state.N
-const influenceScale = state.influenceScale
+const N = state.N;
+const influenceScale = state.influenceScale;
 
-const resolution = [
-  window.innerWidth,
-  window.innerHeight,
-]
+const resolution = [window.innerWidth, window.innerHeight];
 
 const influenceResolution = [
   resolution[0] / influenceScale,
   resolution[1] / influenceScale,
-]
+];
 
 const positionFbo_1 = regl.framebuffer({
   width: N,
   height: N,
   depth: false,
-  colorType: 'float',
-})
+  colorType: "float",
+});
 const positionFbo_2 = regl.framebuffer({
   width: N,
   height: N,
   depth: false,
-  colorType: 'float',
-})
+  colorType: "float",
+});
 const colorsFbo = regl.framebuffer({
   width: N,
   height: N,
-  colorType: 'float',
-})
+  colorType: "float",
+});
 const speedFbo_1 = regl.framebuffer({
   width: N,
   height: N,
   depth: false,
-  colorType: 'float',
-})
+  colorType: "float",
+});
 const speedFbo_2 = regl.framebuffer({
   width: N,
   height: N,
   depth: false,
-  colorType: 'float',
-})
+  colorType: "float",
+});
 
 const influenceTexture = regl.texture({
   width: Math.round(influenceResolution[0]),
   height: Math.round(influenceResolution[1]),
-  min: 'linear',
-  mag: 'linear',
+  min: "linear",
+  mag: "linear",
   premultiplyAlpha: false, // default = false
-  type: 'float',
-})
+  type: "float",
+});
 
 const influenceFbo = regl.framebuffer({
   width: Math.round(influenceResolution[0]),
@@ -141,8 +156,8 @@ const influenceFbo = regl.framebuffer({
   depthStencil: false,
   stencil: false,
   color: influenceTexture,
-  colorType: 'float'
-})
+  colorType: "float",
+});
 
 // draws some random colors
 const randomInit = regl({
@@ -178,17 +193,23 @@ const randomInit = regl({
     }
   `,
   attributes: {
-    position: [[-1, -1], [1, 1], [1, -1], [-1, -1], [-1, 1], [1, 1]],
+    position: [
+      [-1, -1],
+      [1, 1],
+      [1, -1],
+      [-1, -1],
+      [-1, 1],
+      [1, 1],
+    ],
   },
   uniforms: {
     // @ts-ignore
-    seed: regl.prop('seed'),
+    seed: regl.prop("seed"),
   },
   count: 6,
   // @ts-ignore
-  framebuffer: regl.prop('fbo'),
-})
-
+  framebuffer: regl.prop("fbo"),
+});
 
 // draws some random colors
 const randomColors = regl({
@@ -234,34 +255,40 @@ const randomColors = regl({
     }
   `,
   attributes: {
-    position: [[-1, -1], [1, 1], [1, -1], [-1, -1], [-1, 1], [1, 1]],
+    position: [
+      [-1, -1],
+      [1, 1],
+      [1, -1],
+      [-1, -1],
+      [-1, 1],
+      [1, 1],
+    ],
   },
   uniforms: {
     // @ts-ignore
-    seed: regl.prop('seed'),
+    seed: regl.prop("seed"),
   },
   count: 6,
   // @ts-ignore
-  framebuffer: regl.prop('fbo'),
-})
+  framebuffer: regl.prop("fbo"),
+});
 
-randomInit({ fbo: positionFbo_1, seed: [0, 0] })
-randomColors({fbo: colorsFbo, seed: [1, 1] })
+randomInit({ fbo: positionFbo_1, seed: [0, 0] });
+randomColors({ fbo: colorsFbo, seed: [1, 1] });
 // randomInit({ fbo: colorsFbo, seed: [5,7]})
-randomInit({ fbo: speedFbo_1, seed: [2,1] })
-
+randomInit({ fbo: speedFbo_1, seed: [2, 1] });
 
 let mouseX = window.innerWidth / 2;
 let mouseY = window.innerHeight / 2;
 
 canvas.addEventListener("mousemove", (e) => {
-  mouseX = e.clientX  / window.innerWidth;
+  mouseX = e.clientX / window.innerWidth;
   mouseY = 1 - e.clientY / window.innerHeight;
-})
+});
 
 let isMouseDown = false;
-canvas.addEventListener("mousedown", () => isMouseDown = true)
-canvas.addEventListener("mouseup", () => isMouseDown = false)
+canvas.addEventListener("mousedown", () => (isMouseDown = true));
+canvas.addEventListener("mouseup", () => (isMouseDown = false));
 
 const drawInfluence = regl({
   frag: `
@@ -281,8 +308,7 @@ const drawInfluence = regl({
     }
   `,
 
-  vert: 
-  `
+  vert: `
     precision highp float;
 
     attribute vec2 position;
@@ -321,16 +347,26 @@ const drawInfluence = regl({
   `,
 
   attributes: {
-    position: [[-1, -1], [1, 1], [1, -1], [-1, -1], [-1, 1], [1, 1]],
+    position: [
+      [-1, -1],
+      [1, 1],
+      [1, -1],
+      [-1, -1],
+      [-1, 1],
+      [1, 1],
+    ],
 
     offset: {
       buffer: regl.buffer(
-        Array(N * N).fill(0).map((_, i) => {
-          const x = i % N
-          const y = Math.floor(i / N)
-          return [x, y]
-        })),
-      divisor: 1 // one separate offset for every triangle.
+        Array(N * N)
+          .fill(0)
+          .map((_, i) => {
+            const x = i % N;
+            const y = Math.floor(i / N);
+            return [x, y];
+          }),
+      ),
+      divisor: 1, // one separate offset for every triangle.
     },
   },
 
@@ -338,25 +374,25 @@ const drawInfluence = regl({
     // @ts-ignore
     resolution: regl.prop("resolution"),
     // @ts-ignore
-    size: regl.prop('size'),
+    size: regl.prop("size"),
     // @ts-ignore
-    positionsTexture: regl.prop('positions'),
+    positionsTexture: regl.prop("positions"),
     colorsTexture: colorsFbo,
     // @ts-ignore
     influenceScale: regl.prop("influenceScale"),
     n: N,
     // @ts-ignore
-    spread: regl.prop('spread'),
+    spread: regl.prop("spread"),
     // @ts-ignore
-    alphaScale: regl.prop('alphaScale'),
+    alphaScale: regl.prop("alphaScale"),
     // @ts-ignore
-    isMouseDown: regl.prop('isMouseDown'),
+    isMouseDown: regl.prop("isMouseDown"),
     // @ts-ignore
-    mouse: regl.prop('mouse'),
+    mouse: regl.prop("mouse"),
   },
 
   depth: {
-    enable: false
+    enable: false,
   },
 
   blend: {
@@ -364,12 +400,12 @@ const drawInfluence = regl({
     // @ts-ignore
     func: regl.prop("blendFunc"),
   },
-  
+
   count: 6,
   instances: N * N,
   // @ts-ignore
-  framebuffer: regl.prop('target'),
-})
+  framebuffer: regl.prop("target"),
+});
 
 const updatePosition = regl({
   frag: `
@@ -396,18 +432,25 @@ const updatePosition = regl({
   `,
   uniforms: {
     //@ts-ignore
-    speedTexture: regl.prop('speed'),
+    speedTexture: regl.prop("speed"),
     // @ts-ignore
-    current: regl.prop('current'),
+    current: regl.prop("current"),
     n: N,
   },
   attributes: {
-    position: [[-1, -1], [1, 1], [1, -1], [-1, -1], [-1, 1], [1, 1]],
+    position: [
+      [-1, -1],
+      [1, 1],
+      [1, -1],
+      [-1, -1],
+      [-1, 1],
+      [1, 1],
+    ],
   },
   count: 6,
   // @ts-ignore
-  framebuffer: regl.prop('next'),
-})
+  framebuffer: regl.prop("next"),
+});
 
 const updateSpeed = regl({
   frag: `
@@ -533,23 +576,29 @@ const updateSpeed = regl({
     resolution,
     size: window.state.size,
     //@ts-ignore
-    time: regl.prop('time'),
+    time: regl.prop("time"),
     // @ts-ignore
-    oldSpeed: regl.prop('oldSpeed'),
+    oldSpeed: regl.prop("oldSpeed"),
     // @ts-ignore
-    mouse: regl.prop('mouse'),
+    mouse: regl.prop("mouse"),
     // @ts-ignore
-    isMouseDown: regl.prop('isMouseDown'),
+    isMouseDown: regl.prop("isMouseDown"),
     spread: window.state.spread,
-
   },
   attributes: {
-    position: [[-1, -1], [1, 1], [1, -1], [-1, -1], [-1, 1], [1, 1]],
+    position: [
+      [-1, -1],
+      [1, 1],
+      [1, -1],
+      [-1, -1],
+      [-1, 1],
+      [1, 1],
+    ],
   },
   count: 6,
   // @ts-ignore
   framebuffer: regl.prop("target"),
-})
+});
 
 const drawTexture = regl({
   frag: `
@@ -577,12 +626,19 @@ const drawTexture = regl({
     sizeFactor: 0.125,
   },
   attributes: {
-    position: [[-1, -1], [1, 1], [1, -1], [-1, -1], [-1, 1], [1, 1]],
+    position: [
+      [-1, -1],
+      [1, 1],
+      [1, -1],
+      [-1, -1],
+      [-1, 1],
+      [1, 1],
+    ],
   },
   count: 6,
-})
+});
 
-const prevFrame = regl.texture()
+const prevFrame = regl.texture();
 
 const drawPrevFrame = regl({
   frag: `
@@ -607,54 +663,61 @@ const drawPrevFrame = regl({
     prev: prevFrame,
   },
   attributes: {
-    position: [[-1, -1], [1, 1], [1, -1], [-1, -1], [-1, 1], [1, 1]],
+    position: [
+      [-1, -1],
+      [1, 1],
+      [1, -1],
+      [-1, -1],
+      [-1, 1],
+      [1, 1],
+    ],
   },
   count: 6,
   blend: {
     enable: true,
-    equation: "add"
+    equation: "add",
   },
   depth: { enable: false },
-})
+});
 
-const inf = (positions: Framebuffer2D, useTarget = true) => drawInfluence({
-  target: useTarget ? influenceFbo : undefined,
-  resolution: influenceResolution,
-  positions,
-  influenceScale,
-  spread: window.state.spread,
-  size: window.state.size,
-  alphaScale: window.state.alphaScale,
-  isMouseDown,
-  mouse: [mouseX, mouseY],
-  blendFunc: {
-    srcRGB: 'one minus dst color', // written by fragment shader
-    srcAlpha: 'one',
-    dstRGB: 'one', // what's already in the buffer
-    dstAlpha: 'one',
-  },
-})
+const inf = (positions: Framebuffer2D, useTarget = true) =>
+  drawInfluence({
+    target: useTarget ? influenceFbo : undefined,
+    resolution: influenceResolution,
+    positions,
+    influenceScale,
+    spread: window.state.spread,
+    size: window.state.size,
+    alphaScale: window.state.alphaScale,
+    isMouseDown,
+    mouse: [mouseX, mouseY],
+    blendFunc: {
+      srcRGB: "one minus dst color", // written by fragment shader
+      srcAlpha: "one",
+      dstRGB: "one", // what's already in the buffer
+      dstAlpha: "one",
+    },
+  });
 
-
-let debug = false
-let tick = false
+let debug = false;
+let tick = false;
 let renderNext = true;
 let autoplay = true;
 regl.frame(() => {
-  if (!renderNext) return
+  if (!renderNext) return;
   influenceFbo.use(() => {
     regl.clear({
-      color: [0, 0, 0, 0]
-    })
-  })
+      color: [0, 0, 0, 0],
+    });
+  });
 
-  tick = !tick
-  const currentPosition = tick ? positionFbo_1 : positionFbo_2
-  const nextPosition = tick ? positionFbo_2 : positionFbo_1
-  const currentSpeed = tick ? speedFbo_1 : speedFbo_2
-  const nextSpeed = tick ? speedFbo_2 : speedFbo_1
+  tick = !tick;
+  const currentPosition = tick ? positionFbo_1 : positionFbo_2;
+  const nextPosition = tick ? positionFbo_2 : positionFbo_1;
+  const currentSpeed = tick ? speedFbo_1 : speedFbo_2;
+  const nextSpeed = tick ? speedFbo_2 : speedFbo_1;
 
-  inf(currentPosition)
+  inf(currentPosition);
 
   updateSpeed({
     positions: currentPosition,
@@ -663,17 +726,16 @@ regl.frame(() => {
     time: Date.now(),
     mouse: [mouseX, mouseY],
     isMouseDown,
-  })
+  });
 
   updatePosition({
     current: currentPosition,
     next: nextPosition,
     speed: nextSpeed,
-  })
+  });
 
-  drawPrevFrame()
+  drawPrevFrame();
   if (!debug) {
-
     drawInfluence({
       positions: nextPosition,
       resolution,
@@ -684,31 +746,31 @@ regl.frame(() => {
       isMouseDown,
       mouse: [mouseX, mouseY],
       blendFunc: {
-        srcRGB: 'src alpha', // written by fragment shader
-        srcAlpha: 'src alpha',
-        dstRGB: 'dst alpha', // what's already in the buffer
-        dstAlpha: 'one minus src alpha',
+        srcRGB: "src alpha", // written by fragment shader
+        srcAlpha: "src alpha",
+        dstRGB: "dst alpha", // what's already in the buffer
+        dstAlpha: "one minus src alpha",
       },
-    })
+    });
   } else {
-    inf(currentPosition, false)
+    inf(currentPosition, false);
     drawTexture({
-      tex: positionFbo_2
-    })
+      tex: positionFbo_2,
+    });
   }
   prevFrame({
-    copy: true
-  })
+    copy: true,
+  });
   renderNext = autoplay;
-})
+});
 
 window.addEventListener("keyup", (e) => {
   if (e.key === " ") {
-    renderNext = true
+    renderNext = true;
   } else if (e.key === "p") {
-    autoplay = !autoplay
-    renderNext = autoplay
+    autoplay = !autoplay;
+    renderNext = autoplay;
   } else if (e.key === "d") {
-    debug = !debug
+    debug = !debug;
   }
-})
+});

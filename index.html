@@ -11,8 +11,18 @@
           width: 100%;
           height: 100%;
           background: #000;
-          font-size: 16px;
-          font-family: sans-serif;
+          font-size: 14px;
+          font-family: system-ui, 
+             -apple-system, BlinkMacSystemFont, 
+             "Segoe UI", 
+             "Roboto", 
+             "Oxygen", 
+             "Ubuntu", 
+             "Cantarell", 
+             "Fira Sans", 
+             "Droid Sans", 
+             "Helvetica Neue", 
+             Arial, sans-serif;
       }
 
       .controls {
@@ -25,18 +35,21 @@
           padding-top: .5rem;
           z-index: 2;
           transition: .4s ease-in-out;
+
+          text-transform: lowercase;
       }
 
       .controls label {
           display: flex;
-          padding: .25rem .5rem;
+          padding: .25rem 1rem;
           align-items: center;
+
       }
 
       .controls label span {
           color: #fff;
           font-size: .75rem;
-          flex-basis: 8rem;
+          flex-basis: 3rem;
       }
 
       .controls label input {
@@ -55,8 +68,9 @@
       .controls h2 {
           color: #fff;
           font-size: 1rem;
+          font-weight: 300;
           margin: 0;
-          padding: .5rem;
+          padding: 1.3rem 1rem .7rem 1rem;
       }
 
       .controls > button:last-child {
@@ -65,6 +79,7 @@
           background: #222;
           border: none;
           padding: .25rem;
+          margin-top: 10px;
       }
 
 
@@ -134,6 +149,107 @@
               transform: translateY(0%);
           }
       }
+
+        .color {
+        display: inline-block;
+        width: 1em;
+        height: 1em;
+        border: 1px solid white;
+        }
+
+        .color.red {
+        background: red;
+        }
+
+        .color.green {
+        background: #0f0;
+        }
+
+        .color.blue {
+        background: blue;
+        }
+
+
+        :root {
+            --slider-height: 10px;
+            --slider-thumb-width: 0px;
+            --slider-thumb-border-width: 0px;
+        }
+
+        input[type="range"] { 
+        margin: auto;
+        -webkit-appearance: none;
+        position: relative;
+        overflow: hidden;
+        height: var(--slider-height);
+        width: 200px;
+        cursor: pointer;
+        border-radius: 0; /* iOS */
+        }
+
+        ::-webkit-slider-runnable-track {
+        background: #ddd;
+        }
+
+        /*
+        * 1. Set to 0 width and remove border for a slider without a thumb
+        * 2. Shadow is negative the full width of the input and has a spread 
+        *    of the width of the input.
+        */
+        ::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: var(--slider-thumb-width); /* 1 */
+        height: var(--slider-height);
+        background: #fff;
+        box-shadow: -200px 0 0 200px dodgerblue; /* 2 */
+        border: var(--slider-thumb-border-width) solid #999; /* 1 */
+        }
+
+        ::-moz-range-track {
+        height: var(--slider-height);
+        background: #ddd;
+        }
+
+        ::-moz-range-thumb {
+        background: #fff;
+        height: var(--slider-height);
+        width: var(--slider-thumb-width); /* 1 */
+        border: var(--slider-thumb-border-width) solid #999; /* 1 */
+        border-radius: 0 !important;
+        box-shadow: -200px 0 0 200px dodgerblue;
+        box-sizing: border-box;
+        }
+
+        ::-ms-fill-lower { 
+        background: dodgerblue;
+        }
+
+        ::-ms-thumb { 
+        background: #fff;
+        border: var(--slider-thumb-border-width) solid #999; /* 1 */
+        height: var(--slider-height);
+        width: var(--slider-thumb-width); /* 1 */
+        box-sizing: border-box;
+        }
+
+        ::-ms-ticks-after { 
+        display: none; 
+        }
+
+        ::-ms-ticks-before { 
+        display: none; 
+        }
+
+        ::-ms-track { 
+        background: #ddd;
+        color: transparent;
+        height: var(--slider-height);
+        border: none;
+        }
+
+        ::-ms-tooltip { 
+        display: none;
+        }
   </style>
 </head>
 <body>
@@ -158,56 +274,56 @@
 
         <!-- alphaScale -->
         <label>
-            <span>alphaScale</span>
+            <span>Alpha</span>
             <input data-state="alphaScale" type="range" min="1" max="25" step="0.001" />
         </label>
       </section>
 
-      <section class="collapsible">
+      <section class="inputs collapsible">
           <h2>Color interactions</h2>
 
           <label>
-              <span>Red -> Red</span>
+              <span><div class="color red"></div>  <div class="color red"></div></span>
               <input data-state="rr" type="range" min="-1" max="1" step="0.001" />
           </label>
 
           <label>
-              <span>Red -> Green</span>
+              <span><div class="color red"></div>  <div class="color green"></div></span>
               <input data-state="rg" type="range" min="-1" max="1" step="0.001" />
           </label>
 
           <label>
-              <span>Red -> Blue</span>
+              <span><div class="color red"></div>  <div class="color blue"></div></span>
               <input data-state="rb" type="range" min="-1" max="1" step="0.001" />
           </label>
 
           <label>
-              <span>Green -> Red</span>
+              <span><div class="color green"></div>  <div class="color red"></div></span>
               <input data-state="gr" type="range" min="-1" max="1" step="0.001" />
           </label>
 
           <label>
-              <span>Green -> Green</span>
+              <span><div class="color green"></div>  <div class="color green"></div></span>
               <input data-state="gg" type="range" min="-1" max="1" step="0.001" />
           </label>
 
           <label>
-              <span>Green -> Blue</span>
+              <span><div class="color green"></div>  <div class="color blue"></div></span>
               <input data-state="gb" type="range" min="-1" max="1" step="0.001" />
           </label>
 
           <label>
-              <span>Blue -> Red</span>
+              <span><div class="color blue"></div>  <div class="color red"></div></span>
               <input data-state="br" type="range" min="-1" max="1" step="0.001" />
           </label>
 
           <label>
-              <span>Blue -> Green</span>
+              <span><div class="color blue"></div>  <div class="color green"></div></span>
               <input data-state="bg" type="range" min="-1" max="1" step="0.001" />
           </label>
 
           <label>
-              <span>Blue -> Blue</span>
+              <span><div class="color blue"></div>  <div class="color blue"></div></span>
               <input data-state="bb" type="range" min="-1" max="1" step="0.001" />
           </label>
       </section>
