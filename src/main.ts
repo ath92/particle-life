@@ -208,15 +208,15 @@ const randomColors = regl({
       );
       // // c = vec3(1);
       c = c / length(c);
-      // float r = rand(pos * seed * gl_FragCoord.xy);
+      float r = rand(pos * seed * gl_FragCoord.xy);
       // vec3 c = vec3(0);
-      // if (r < .33) {
-      //   c = vec3(1, 0, 0);
-      // } else if (r > 0.33 && r < 0.67) {
-      //   c = vec3(0, 1, 0);
-      // } else {
-      //   c = vec3(0, 0, 1);
-      // }
+      if (r < .33) {
+        c = vec3(1, 0, 0);
+      } else if (r > 0.33 && r < 0.67) {
+        c = vec3(0, 1, 0);
+      } else {
+        c = vec3(0, 0, 1);
+      }
       gl_FragColor = vec4(
         c,
         1.
