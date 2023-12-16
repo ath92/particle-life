@@ -121,6 +121,7 @@
           font-size: .75rem;
           top: 0;
           right: 0;
+          top: 20%;
       }
 
       .collapsible h2:hover::after {
@@ -152,8 +153,8 @@
 
         .color {
         display: inline-block;
-        width: 1em;
-        height: 1em;
+        width: .85em;
+        height: .85em;
         border: 1px solid white;
         }
 
@@ -174,6 +175,8 @@
             --slider-height: 10px;
             --slider-thumb-width: 0px;
             --slider-thumb-border-width: 0px;
+            --slider-track-bg: #222;
+            --slider-track-active-bg: #ccc;
         }
 
         input[type="range"] { 
@@ -188,7 +191,7 @@
         }
 
         ::-webkit-slider-runnable-track {
-        background: #ddd;
+        background: var(--slider-track-bg);
         }
 
         /*
@@ -200,14 +203,14 @@
         -webkit-appearance: none;
         width: var(--slider-thumb-width); /* 1 */
         height: var(--slider-height);
-        background: #fff;
-        box-shadow: -200px 0 0 200px dodgerblue; /* 2 */
+        background: var(--slider-track-bg);
+        box-shadow: -200px 0 0 200px var(--slider-track-active-bg); /* 2 */
         border: var(--slider-thumb-border-width) solid #999; /* 1 */
         }
 
         ::-moz-range-track {
         height: var(--slider-height);
-        background: #ddd;
+        background: var(--slider-track-bg);
         }
 
         ::-moz-range-thumb {
@@ -216,12 +219,12 @@
         width: var(--slider-thumb-width); /* 1 */
         border: var(--slider-thumb-border-width) solid #999; /* 1 */
         border-radius: 0 !important;
-        box-shadow: -200px 0 0 200px dodgerblue;
+        box-shadow: -200px 0 0 200px  var(--slider-track-active-bg);
         box-sizing: border-box;
         }
 
         ::-ms-fill-lower { 
-        background: dodgerblue;
+        background:  var(--slider-track-active-bg);
         }
 
         ::-ms-thumb { 
@@ -241,7 +244,7 @@
         }
 
         ::-ms-track { 
-        background: #ddd;
+        background: var(--slider-track-bg);
         color: transparent;
         height: var(--slider-height);
         border: none;
