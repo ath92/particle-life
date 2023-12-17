@@ -741,8 +741,8 @@ regl.frame(() => {
       resolution,
       influenceScale: 1,
       spread: 1,
-      size: 3,
-      alphaScale: 3,
+      size: 5,
+      alphaScale: 10,
       isMouseDown,
       mouse: [mouseX, mouseY],
       blendFunc: {
