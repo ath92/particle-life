@@ -28,15 +28,15 @@ const regl = Regl({
 const state = {
   N:
     parseFloat(new URLSearchParams(window.location.search).get("n")!) ||
-    Math.round((window.innerWidth * window.innerHeight) / 10000),
+    Math.min(Math.round((window.innerWidth * window.innerHeight) / 10000), 150),
   influenceScale:
     parseFloat(
       new URLSearchParams(window.location.search).get("influence-scale")!,
     ) || 2,
   size: 12.5,
-  spread: 1.5,
+  spread: 4.5,
   alphaScale: 1,
-  rr: 0.546,
+  rr: 0.776,
   rg: 0.295,
   rb: 0.685,
   gr: -0.646,
