@@ -8,4 +8,5 @@ Note: this project uses some less supported webgl features, so it may not work f
 
 Here's a screen recording:
 
-<video src="output.mp4" controls title="Particle life screen recording"></video>
+https://github.com/ath92/particle-life/assets/1820506/bc94c452-ba87-444b-9eef-0d750d66d574
+
